@@ -95,6 +95,8 @@
 </template>
 
 <script>
+import { mapState } from 'vuex';
+
 export default {
   // name: 'PageName',
   props: ['id'],
@@ -102,48 +104,35 @@ export default {
     return {
       favorited: false,
       rate: 4,
-      recipe: null,
-      ingredientes: [],
-      instructionsData: null,
-      instructions: null,
-      tags: null,
-      instroState: {
-        check1: false,
-        check2: false,
-        check3: false,
-        check4: false,
-        check5: false,
-      },
     };
   },
+  computed: {
+    ...mapState({
+      ingredientes: (state) => state.recipe.ingredients,
+      instructions: (state) => state.recipe.instructions,
+      tags: (state) => state.recipe.tags,
+      recipe: (state) => state.recipe.recipeInfo,
+      favorites: (state) => state.recipe.favorited,
+    }),
+  },
   methods: {
-    getRecipe(id) {
-      this.$api.get(`/lookup.php?i=${id}`)
-        .then((response) => {
-          [this.recipe] = response.data.meals;
-          this.getIngredientes(this.recipe);
-          this.instructionsData = this.recipe.strInstructions.split('\r\n');
-          this.instructions = this.instructionsData.filter((item) => item !== '');
-          this.tags = this.recipe.strTags ? this.recipe.strTags.split(',') : null;
-          // console.log(response.data.meals[0]);
-        });
-    },
-    getIngredientes(recipe) {
-      const recipeKeys = Object.keys(recipe);
-      const ingrediente = recipeKeys.filter((key) => key.includes('strIngredient'));
-      this.ingredientes = ingrediente.filter((item) => recipe[item] !== '' && recipe[item] !== null);
-    },
-    saveMeal(id) {
+    saveMeal() {
       this.favorited = !this.favorited;
-      if (this.favorited) {
-        this.$q.localStorage.set(id, this.recipe);
-      } else {
-        this.$q.localStorage.remove(id);
+      const payload = { favorited: this.favorited, recipe: this.recipe };
+      this.$store.dispatch('saveMeal', payload);
+    },
+    checkFavorite() {
+      const recipes = this.favorites.filter((favorite) => favorite.idMeal === this.id);
+      console.log(recipes);
+      if (recipes.lenght) {
+        this.favorited = true;
       }
     },
   },
   mounted() {
-    this.getRecipe(this.id);
+    this.$store.dispatch('getRecipe', this.id);
+    this.checkFavorite();
+    // console.log(this.recipe1);
   },
 };
 </script>
