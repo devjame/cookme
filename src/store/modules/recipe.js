@@ -1,46 +1,72 @@
 import { api } from 'boot/axios';
+import { LocalStorage } from 'quasar';
 
 export default {
+  namespace: true,
   state: {
     recipes: [],
+    recipeInfo: {},
+    ingredients: [],
+    instructions: [],
+    tags: [],
+    favorited: [],
   },
 
   mutations: {
     SET_RECIPES(state, payload) {
-      state.recipe = payload;
+      state.recipes = payload;
+    },
+    SET_RECIPEById(state, recipe) {
+      state.recipeInfo = recipe;
+    },
+    SET_TAGS(state, recipe) {
+      if (recipe.strTags) {
+        state.tags = recipe.strTags.split(',');
+      }
+    },
+    SET_INSTRUCTIONS(state, recipe) {
+      const instructionsData = recipe.strInstructions.split('\r\n');
+      state.instructions = instructionsData.filter((item) => item !== '');
+    },
+    SET_INGREDIENTS(state, recipe) {
+      const recipeKeys = Object.keys(recipe);
+      const ingrediente = recipeKeys.filter((key) => key.includes('strIngredient'));
+      state.ingredients = ingrediente.filter((item) => recipe[item] !== '' && recipe[item] !== null);
+    },
+    SET_FAVORITE(state, recipe) {
+      state.favorited.push(recipe);
+    },
+    REMOVE_FAVORITE(state, recipe) {
+      state.favorited = state.favorited.filter((favorite) => favorite !== recipe);
     },
   },
 
   actions: {
-    setRecipes({ state }) {
+    setRecipes({ commit }) {
       api.get('/filter.php?c=Seafood')
-        .then((result) => {
-          state.recipes = result.data.meals;
-          // console.log(this.recipes);
+        .then((response) => {
+          commit('SET_RECIPES', response.data.meals);
+          // console.log(state.recipes);
         });
     },
-    getRecipe(id) {
-      this.$api.get(`/lookup.php?i=${id}`)
+    getRecipe({ commit }, id) {
+      api.get(`/lookup.php?i=${id}`)
         .then((response) => {
           const [recipe] = response.data.meals;
-          this.getIngredientes(recipe);
-          this.instructionsData = this.recipe.strInstructions.split('\r\n');
-          this.instructions = this.instructionsData.filter((item) => item !== '');
-          this.tags = this.recipe.strTags ? this.recipe.strTags.split(',') : null;
+          commit('SET_RECIPEById', recipe);
+          commit('SET_INGREDIENTS', recipe);
+          commit('SET_INSTRUCTIONS', recipe);
+          commit('SET_TAGS', recipe);
           // console.log(response.data.meals[0]);
         });
     },
-    getIngredientes(recipe) {
-      const recipeKeys = Object.keys(recipe);
-      const ingrediente = recipeKeys.filter((key) => key.includes('strIngredient'));
-      this.ingredientes = ingrediente.filter((item) => recipe[item] !== '' && recipe[item] !== null);
-    },
-    saveMeal(id) {
-      this.favorited = !this.favorited;
-      if (this.favorited) {
-        this.$q.localStorage.set(id, this.recipe);
+    saveMeal({ commit }, payload) {
+      if (payload.favorited === true) {
+        commit('SET_FAVORITE', payload.recipe);
+        LocalStorage.set('favoritedRecipe', payload.recipe);
       } else {
-        this.$q.localStorage.remove(id);
+        commit('REMOVE_FAVORITE', payload.recipe);
+        LocalStorage.set('favoritedRecipe', payload.recipe);
       }
     },
   },
